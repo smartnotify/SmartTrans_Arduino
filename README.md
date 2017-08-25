@@ -12,3 +12,5 @@ Working with Bluetooth Low Energy can be an experience at times and we use the t
 ##Sensors
 For this example we are using sensors from DF Robotics. Most sensors work the same way, one major difference that we have
 seen is around sound sensors with some models returning a level (i.e. 1,2,3,4...) and others returning a db (decibel) approximation.
+
+Also check on the manufacturer's settings for units. For temperatures for example, some sensors are in C others in F and it makes quite a difference!

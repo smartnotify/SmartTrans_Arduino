@@ -160,7 +160,7 @@ void updateSoundCharacteristic() {
     valSound=analogRead(analogSoundSensorPin);   //connect Sound sensor on Analog 3
 
     printSerialMessages("Sound is now: ");
-    SprintSerialMessages(valSound);
+    printSerialMessages(String(valSound, DEC));
     stSoundChar.setValue(valSound);
     }
 
@@ -171,7 +171,7 @@ void updateLightCharacteristic() {
     valLight=analogRead(analogLightSensorPin);   //connect Light on Analog 1
 
     printSerialMessages("Light is now: ");
-    printSerialMessages(valLight);
+    printSerialMessages(String(valLight, DEC));
     stLightChar.setValue(valLight);
     }
 
@@ -181,10 +181,11 @@ void updateTempCharacteristic() {
   uint16_t valTemperature;
     double datTemperature;
     valTemperature=analogRead(analogTempSensorPin);//Connect LM35 on Analog 0
+    Serial.println(valTemperature);
     datTemperature = (double) valTemperature / 3.26;
 
     printSerialMessages("Temperature is now: ");
-    printSerialMessages(datTemperature);
+    printSerialMessages(String(datTemperature, DEC));
     stTempChar.setValue(datTemperature);
 
 }

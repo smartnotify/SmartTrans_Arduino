@@ -1,0 +1,190 @@
+#include "BLESerial.h"
+#include "CurieIMU.h"
+#include "CurieBLE.h"
+
+/* Variables */
+int analogLightSensorPin = 2;
+int analogTempSensorPin = 0;
+int analogSoundSensorPin = 4;
+int digitalPushButtonPin = 2;
+bool showMessagelog = true;
+int valPushPin =0;
+int ledIndicatorPin= 13;
+int oldTempValue= 0;
+long previousMillis = 0;
+
+/* BLE SETUP */
+/* Make sure you keep the same characteristics values if you want the mobile app to pick up the data
+coming from your board */
+
+BLEPeripheral blePeripheral;
+BLEService smartTransService("181C"); // BLE  Service
+// BLE Characteristics
+BLEUnsignedCharCharacteristic stTempChar("2A1C", BLERead | BLENotify);
+BLEUnsignedCharCharacteristic stLightChar("2A37", BLERead | BLENotify);
+BLEUnsignedCharCharacteristic stSoundChar("2A23", BLERead | BLENotify);
+BLEUnsignedCharCharacteristic stPushButtonChar("2A24", BLERead | BLENotify);
+BLEUnsignedCharCharacteristic stAxisChar("2A25", BLERead | BLENotify);
+
+void printSerialMessages (String val){
+  if (showMessagelog){
+    Serial.println(val);
+  }
+}
+
+void setup() {
+  pinMode(ledIndicatorPin, OUTPUT);
+  pinMode(digitalPushButtonPin, INPUT);     // declare pushbutton as input
+  pinMode(LED_BUILTIN, OUTPUT);
+  Serial.begin(9600);    // initialize serial communication
+
+  // initialize device
+  printSerialMessages("Initializing Currie based device...");
+  CurieIMU.begin();
+
+  // Set the accelerometer range to 2G
+  //At this stage we are not leveraging all the Accelerometer data yet.  This is optional
+  //If you do not have a currie, you can also hook up an external accelerometer to achieve the same result.
+
+  CurieIMU.setAccelerometerRange(2);
+
+  /* Set a local name for the BLE device
+     This name will appear in advertising packets
+     and can be used by remote devices to identify this BLE device */
+
+  blePeripheral.setLocalName("SmartTransSensorBox");
+  blePeripheral.setAdvertisedServiceUuid(smartTransService.uuid());  // add the service UUID
+  blePeripheral.addAttribute(smartTransService);   // Add the BLE  service
+  blePeripheral.addAttribute(stTempChar); // add the reading level characteristic
+  stTempChar.setValue(oldTempValue);   // initial value for this characteristic
+
+  blePeripheral.addAttribute(stLightChar);
+  stLightChar.setValue(oldTempValue);
+
+  blePeripheral.addAttribute(stSoundChar);
+  stSoundChar.setValue(oldTempValue);
+
+  blePeripheral.addAttribute(stPushButtonChar);
+  stPushButtonChar.setValue(oldTempValue);
+
+  blePeripheral.addAttribute(stAxisChar);
+  stAxisChar.setValue(oldTempValue);
+
+  /* Now activate the BLE device.  It will start continuously transmitting BLE
+     advertising packets and will be visible to remote BLE central devices
+     until it receives a new connection */
+  blePeripheral.begin();
+  printSerialMessages("Bluetooth device active, waiting for connections...");
+
+}
+
+void loop() {
+
+  BLECentral central = blePeripheral.central();
+
+  // if a central is connected to peripheral:
+  if (central) {
+    digitalWrite(LED_BUILTIN, HIGH);
+    Serial.print("Connected to central: ");
+    // print the central's MAC address:
+    Serial.println(central.address());
+
+    /* we are currently not setup to handle the accelerometer data
+    CurieIMU.begin();
+     CurieIMU.attachInterrupt(updateAxisCharacteristic);
+     CurieIMU.setDetectionThreshold(CURIE_IMU_SHOCK, 1050); // 1.050g = 1050mg
+     CurieIMU.setDetectionDuration(CURIE_IMU_SHOCK, 75);   // 75ms
+     CurieIMU.interrupts(CURIE_IMU_SHOCK);
+ */
+
+    while (central.connected()) {
+      // check the entries every 200ms as long as the central is still connected:
+      long currentMillis = millis();
+
+        if (currentMillis - previousMillis >= 5000) {
+          previousMillis = currentMillis;
+          updateTempCharacteristic();
+          updateLightCharacteristic();
+          updateSoundCharacteristic();
+
+        }
+     // valPushPin = digitalRead(inputPushPin);  // read input value
+    //  Serial.println(valPushPin);
+    //  updatePushCharacteristic(valPushPin);
+
+
+
+  }//end while central
+ }//end BLE Central
+ else {
+    printSerialMessages("not connected yet");
+    digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
+    delay(1000);                       // wait for a second
+    digitalWrite(LED_BUILTIN, LOW);    // turn the LED off by making the voltage LOW
+    delay(1000);
+ }
+ // digitalWrite(13, LOW);
+}
+
+void updateAxisCharacteristic( void ){
+
+
+  if (CurieIMU.getInterruptStatus(CURIE_IMU_SHOCK)) {
+   digitalWrite(LED_BUILTIN, HIGH);
+   delay(50);
+   digitalWrite(LED_BUILTIN, LOW);
+   //printSerialMessages("Shocking!");
+    char axis='1';
+    stAxisChar.setValue(axis);
+ }
+
+
+
+
+
+}
+
+void updatePushCharacteristic(int valPushPin) {
+  if (valPushPin == 0) {            // check if the input is HIGH
+        digitalWrite(ledIndicatorPin, LOW);  // turn LED OFF
+      }
+  else {
+        digitalWrite(ledIndicatorPin, HIGH); // turn LED ON
+      }
+    stPushButtonChar.setValue(valPushPin);
+    }
+
+void updateSoundCharacteristic() {
+  /* Read the current sound level */
+    int valSound;
+    valSound=analogRead(analogSoundSensorPin);   //connect Sound sensor on Analog 3
+
+    printSerialMessages("Sound is now: ");
+    SprintSerialMessages(valSound);
+    stSoundChar.setValue(valSound);
+    }
+
+
+void updateLightCharacteristic() {
+  /* Read the current Light level */
+    int valLight;
+    valLight=analogRead(analogLightSensorPin);   //connect Light on Analog 1
+
+    printSerialMessages("Light is now: ");
+    printSerialMessages(valLight);
+    stLightChar.setValue(valLight);
+    }
+
+
+void updateTempCharacteristic() {
+  /* Read the current Temp level */
+  uint16_t valTemperature;
+    double datTemperature;
+    valTemperature=analogRead(analogTempSensorPin);//Connect LM35 on Analog 0
+    datTemperature = (double) valTemperature / 3.26;
+
+    printSerialMessages("Temperature is now: ");
+    printSerialMessages(datTemperature);
+    stTempChar.setValue(datTemperature);
+
+}
